@@ -30,5 +30,8 @@ uvicorn main:app --reload
 * `AI_MODEL_NAME` : API key from your AI model (eg. Anthropic, OpenAI, etc) 
 * `AI_MODEL_API_KEY` : Name of the mdoel (eg. `claude-sonnet-4-20250514`)
 * `GIT_WEBHOOK_SECRET` : Github webhook secret (this is secret you can create as you like to provide it as a secret while setting up github webhook on github)
-* `GITHUB_API_ACESS_TOKEN` : Github API access token, refer [here](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens){:target="_blank"}.
+* `GITHUB_API_ACESS_TOKEN` : Github API access token, refer <a href="https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens" target="_blank">here</a>.
 * `GIT_REPO_NAME` : eg. `owner_name/repository_name`
+
+
+> TIP: You can use ngRok to work with github webhooks on your local environment. refer <a href="https://ngrok.com/docs/getting-started/" target="_blank">here</a>.
