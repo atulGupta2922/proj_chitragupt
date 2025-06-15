@@ -8,10 +8,11 @@ def get_event_name(event: str) -> str:
     event_name = event.split('/')[-1]
     return event_name
 
-def get_pull_request():
+def get_pull_request(pr_number: int):
     GITHUB_API_ACESS_TOKEN = os.getenv('GITHUB_API_ACESS_TOKEN')
+    GIT_REPO_NAME = os.getenv('GITHUB_REPO_NAME')
     g = Github(GITHUB_API_ACESS_TOKEN)
-    pr = g.get_repo('atulGupta2922/tex2sql').get_pull(2)
+    pr = g.get_repo(GIT_REPO_NAME).get_pull(pr_number)
     return pr
 
 async def get_diff(pr_url):
