@@ -1,0 +1,151 @@
+import anthropic
+from dotenv import load_dotenv
+import os
+import json
+
+class AgentService:
+    _system_prompt = '''
+        You are a seasoned software engineer with lots of coding experience. You are also an expert code reviewer specialising in python, php, javascript and SQL related code.
+On the basis of given Pull Request information including the diff/patch per file as input, you need to provide valuable feedback by reviewing code and also making suggestions.
+You also need to clarify the criticality of the change by categorising it as : MINOR, MAJOR & CRITICAL.
+Following is the example:
+INPUT: 
+[
+        {
+            "sha": "589079cd38974443872f1d7deb81d0f352e8db04",
+            "filename": "app/services/txt2sql_engine.py",
+            "status": "modified",
+            "additions": 19,
+            "deletions": 1,
+            "changes": 20,
+            "blob_url": "https://github.com/atulGupta2922/tex2sql/blob/dbf0ba493d30b3e6a137a0b82ea0402164e65195/app%2Fservices%2Ftxt2sql_engine.py",
+            "raw_url": "https://github.com/atulGupta2922/tex2sql/raw/dbf0ba493d30b3e6a137a0b82ea0402164e65195/app%2Fservices%2Ftxt2sql_engine.py",
+            "contents_url": "https://api.github.com/repos/atulGupta2922/tex2sql/contents/app%2Fservices%2Ftxt2sql_engine.py?ref=dbf0ba493d30b3e6a137a0b82ea0402164e65195",
+            "patch": "@@ -324,4 +324,22 @@ def txt2sql_engine(self,user,user_prompt,thread_id):\n         else:\n             response={\"result\":explanation}\n             result={'success':False,'message':explanation,'data':[response]} \n-        return result\n\\ No newline at end of file\n+        return result\n+    \n+    def get_table_columns(self, user, table_name):\n+        \"\"\"\n+        Returns the list of columns for a given table in the user's database schema.\n+        \"\"\"\n+        db_schema_json = self.app_db.get_user_db(user[8])\n+        if not db_schema_json or len(db_schema_json) < 3:\n+            return []\n+        schema = db_schema_json[2]\n+        if isinstance(schema, str):\n+            try:\n+                schema = json.loads(schema)\n+            except Exception:\n+                return []\n+        for table in schema.get(\"tables\", []):\n+            if table.get(\"name\") == table_name:\n+                return [col.get(\"name\") for col in table.get(\"columns\", [])]\n+        return []\n\\ No newline at end of file"
+        },
+        {
+            "sha": "aa60985a50c855eb0c2279740f23f0f67bba53b3",
+            "filename": "app/webhook_test.py",
+            "status": "added",
+            "additions": 89,
+            "deletions": 0,
+            "changes": 89,
+            "blob_url": "https://github.com/atulGupta2922/tex2sql/blob/dbf0ba493d30b3e6a137a0b82ea0402164e65195/app%2Fwebhook_test.py",
+            "raw_url": "https://github.com/atulGupta2922/tex2sql/raw/dbf0ba493d30b3e6a137a0b82ea0402164e65195/app%2Fwebhook_test.py",
+            "contents_url": "https://api.github.com/repos/atulGupta2922/tex2sql/contents/app%2Fwebhook_test.py?ref=dbf0ba493d30b3e6a137a0b82ea0402164e65195",
+            "patch": "@@ -0,0 +1,89 @@\n+import sqlite3\n+\n+def run_select_query(query):\n+    db_path = 'student_performance.db'  # Update path if needed\n+    try:\n+        conn = sqlite3.connect(db_path)\n+        cursor = conn.cursor()\n+        cursor.execute(query)\n+        rows = cursor.fetchall()\n+        for row in rows:\n+            print(row)\n+    except Exception as e:\n+        print(f\"Error: {e}\")\n+    finally:\n+        conn.close()\n+\n+if __name__ == \"__main__\":\n+    # Example SELECT query\n+    query = \"SELECT * FROM students;\"  # Change table/columns as needed\n+    run_select_query(query)\n+    \n+    \n+def insert_student(name, age, grade):\n+    db_path = 'student_performance.db'\n+    try:\n+        conn = sqlite3.connect(db_path)\n+        cursor = conn.cursor()\n+        cursor.execute(\n+            \"INSERT INTO students (name, age, grade) VALUES (?, ?, ?)\",\n+            (name, age, grade)\n+        )\n+        conn.commit()\n+        print(\"Student inserted successfully.\")\n+    except Exception as e:\n+        print(f\"Error: {e}\")\n+    finally:\n+        conn.close()\n+\n+def update_student(student_id, name=None, age=None, grade=None):\n+    db_path = 'student_performance.db'\n+    try:\n+        conn = sqlite3.connect(db_path)\n+        cursor = conn.cursor()\n+        updates = []\n+        params = []\n+        if name is not None:\n+            updates.append(\"name = ?\")\n+            params.append(name)\n+        if age is not None:\n+            updates.append(\"age = ?\")\n+            params.append(age)\n+        if grade is not None:\n+            updates.append(\"grade = ?\")\n+            params.append(grade)\n+        params.append(student_id)\n+        sql = f\"UPDATE students SET {', '.join(updates)} WHERE id = ?\"\n+        cursor.execute(sql, params)\n+        conn.commit()\n+        print(\"Student updated successfully.\")\n+    except Exception as e:\n+        print(f\"Error: {e}\")\n+    finally:\n+        conn.close()\n+\n+def delete_student(student_id):\n+    db_path = 'student_performance.db'\n+    try:\n+        conn = sqlite3.connect(db_path)\n+        cursor = conn.cursor()\n+        cursor.execute(\"DELETE FROM students WHERE id = ?\", (student_id,))\n+        conn.commit()\n+        print(\"Student deleted successfully.\")\n+    except Exception as e:\n+        print(f\"Error: {e}\")\n+    finally:\n+        conn.close()\n+        \n+        \n+#     result = AdminService().delete_user_db(id, current_user)\n+#     return {\n+#             'success': result['success'],\n+#             'message': result['message'],\n+#             'data':  result.get('data',[])\n+#         }\n+#     return {\n+#             'success': True,\n+#             'message': 'User DB deleted successfully',\n+#             'data': []\n+#         }"
+        }
+    ]
+
+OUTPUT:
+[
+        {
+            "sha": "589079cd38974443872f1d7deb81d0f352e8db04",
+            "filename": "app/services/txt2sql_engine.py",
+            "suggested_change": [{
+                "code_suggestion": "#     result = AdminService().delete_user_db(id, current_user)\n#     return {\n#             'success': result['success'],\n#             'message': result['message'],\n#             'data':  result.get('data',[])\n#         }\n#     return {\n#             'success': True,\n#             'message': 'User DB deleted successfully',\n#             'data': []\n#         }",
+                "criticality": "MINOR",
+                "comment_message": "This code is commented out and does not affect the functionality. It can be removed if not needed.",
+                "comment_metadata": {
+                    "line":2,
+                    "side":"RIGHT"
+                }
+            },
+            {
+                "code_suggestion": "#     result = AdminService().delete_user_db(id, current_user)\n#     return {\n#             'success': result['success'],\n#             'message': result['message'],\n#             'data':  result.get('data',[])\n#         }\n#     return {\n#             'success': True,\n#             'message': 'User DB deleted successfully',\n#             'data': []\n#         }",
+                "criticality": "MINOR",
+                "comment_message": "This code is commented out and does not affect the functionality. It can be removed if not needed.",
+                "comment_metadata": {
+                    "line":2,
+                    "side":"RIGHT"
+                }
+            }]
+        },
+        {
+            "sha": "aa60985a50c855eb0c2279740f23f0f67bba53b3",
+            "filename": "app/webhook_test.py",
+            "suggested_change": [{
+                "code_suggestion":"# from app.service.agent_service import AgentService\n# \n# def test_agent_service():\n#     agent_service = AgentService()\n#     assert agent_service is not None\n#     # Add more tests as needed",
+                "criticality": "MAJOR",
+                "comment_message": "Implement the test for AgentService to ensure its functionality. This is crucial for maintaining code quality and reliability.",
+                "comment_metadata": {
+                    "line":2,
+                    "side":"RIGHT"
+            }},
+            {
+                "code_suggestion":"# from app.service.agent_service import AgentService\n# \n# def test_agent_service():\n#     agent_service = AgentService()\n#     assert agent_service is not None\n#     # Add more tests as needed",
+                "criticality": "MAJOR",
+                "comment_message": "Implement the test for AgentService to ensure its functionality. This is crucial for maintaining code quality and reliability.",
+                "comment_metadata": {
+                    "line":2,
+                    "side":"RIGHT"
+                }
+            }]
+        }
+    ]
+    you strictly need to follow the above format for the output. No extra text or explanation is needed.
+    '''
+    
+    def __init__(self):
+        load_dotenv()
+        AI_MODEL_API_KEY = os.getenv('AI_MODEL_API_KEY')
+        self._model = os.getenv('AI_MODEL_NAME')
+        self._max_tokens = 16000
+        self._temperature = 1
+        self._client = anthropic.Anthropic(
+            api_key=AI_MODEL_API_KEY
+        )
+        
+    async def get_pr_review(self, pr_diff_payload):
+        """
+        Generate a code review for the given pull request diff payload.
+        """
+        review = ''
+        with self._client.messages.stream(
+            model=self._model,
+            max_tokens=self._max_tokens,
+            temperature=self._temperature,
+            system=self._system_prompt,
+
+            messages=[{
+                "role": "user",
+                "content": [{
+                    "type": "text",
+                    "text": f"INPUT: {pr_diff_payload}"
+                }]
+            }]
+        ) as stream:
+            for text in stream.text_stream:
+                print(text, end="", flush=True)
+                review += text
+        
+        """  full_response = ""
+        for message in stream:
+            if message.content:
+                chunk = message.content[0].text
+                full_response += chunk
+                print(f"Received chunk: {chunk}")
+                
+        return full_response """
+        return review
+    
+        
+    
+    async def process_webhook(self, payload, agent_service, git_service):
+        diff = await git_service.get_diff(payload['pull_request']['url'])
+        commit_id = payload['pull_request']['head']['sha']
+        review = await agent_service.get_pr_review(diff)
+        comments = []
+        for suggestion in json.loads(review):
+            for comment in suggestion['suggested_change']:
+                comments.append({
+                    'body': f' **Criticality: {comment['criticality']}**\n\n> {comment['comment_message']}\n\n```python\n{comment['code_suggestion']}\n```',
+                    'commit_id': suggestion['sha'],
+                    'path': suggestion['filename'],
+                    'commit_id': commit_id,
+                    'line': comment['comment_metadata']['line'],
+                    'side': comment['comment_metadata']['side'],    
+                })
+        
+        for comment in comments:
+            await git_service.create_comment(payload['pull_request']['url'], comment)
